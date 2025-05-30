@@ -174,32 +174,30 @@ def lista_veiculos():
 
 
 # não pode ser acessado
-@app.route('/atualizar_veiculos/<int:id_veiculo>', methods=["PUT"])
-
-def atualizar_veiculos():
+@app.route('/atualizar_veiculos/<id>', methods=["PUT"])
+def atualizar_veiculos(id):
     db_session = local_session()
     try:
         dados = request.get_json()
-        veiculo = db_session.execute(select(Veiculos).where(Veiculos.id_veiculo == id_veiculo)).first()
+        veiculo = db_session.execute(select(Veiculos).where(Veiculos.id == id)).scalar()
         print(veiculo)
         print(dados)
-        if not dados["marca"]or not dados["modelo"] or not dados["placa"] or not dados["ano_de_fabricacao"]:
-            return jsonify({'error':"preencha todos os campos"})
+        if not dados["marca"] or not dados["modelo"] or not dados["placa"] or not dados["ano_de_fabricacao"]:
+            return jsonify({'error':"preencha todos os campos"}),400
         else:
             veiculo.marca = dados["marca"]
             veiculo.modelo = dados["modelo"]
             veiculo.placa = dados["placa"]
-            veiculo.ano_de_fabriacao = dados["ano_de_fabriacao"]
+            veiculo.ano_de_fabriacao = dados["ano_de_fabricacao"]
 
             return jsonify({
-                'id_veiculo': dados["id_veiculo"],
                 'marca': dados["marca"],
                 'modelo': dados["modelo"],
                 'placa': dados["placa"],
-                'ano_de_fabriacao': dados["ano_de_fabriacao"],
-            })
+                'ano_de_fabriacao': dados["ano_de_fabricacao"],
+            }),200
     except Exception as e:
-        return jsonify({'error': str(e)})
+        return jsonify({'error': str(e)}),400
     finally:
         db_session.close()
 
@@ -217,19 +215,19 @@ def ordens_servicos():
             return jsonify({"error": 'Preencher todos os campos'})
         else:
             print(dados)
-            sql=select(Ordens_de_servicos).where(Ordens_de_servicos.id_servicos == dados['id_servicos'])
-            id_servicos_existe= db_session.execute(sql).scalar()
-            print(id_servicos_existe)
+            # sql=select(Ordens_de_servicos).where(Ordens_de_servicos.id_servicos == dados["id_servicos"])
+            # id_servicos_existe= db_session.execute(sql).scalar()
+            # print(id_servicos_existe)
 
             sql = select(Ordens_de_servicos).where(Ordens_de_servicos.veiculos_associados == dados['veiculos_associados'])
             veiculos_associados_existe = db_session.execute(sql).scalar()
             print(veiculos_associados_existe)
 
-            if id_servicos_existe:
-                return jsonify({
-
-                    "erro":'esse id servicos ja contem um veiculo                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           '
-                }),400
+            # if id_servicos_existe:
+            #     return jsonify({
+            #
+            #         "erro":'esse id servicos ja contem um veiculo                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           '
+            #     }),400
 
             if veiculos_associados_existe:
                 return jsonify({
@@ -250,7 +248,7 @@ def ordens_servicos():
             form_nova_ordem.save(db_session)
 
             return jsonify({
-                'id_servicos': dados['id_servicos'],
+
                 'veiculos_associados': dados['veiculos_associados'],
                 'descricao': dados['descricao_de_servico'],
                 'data_de_abertura': dados['data_de_abertura'],
@@ -280,18 +278,7 @@ def lista_servicos():
 
 
 # não pode ser acessado
-@app.route('/atualizar_servicos', methods=["POST"])
+@app.route('/atualizar_ordens', methods=["POST"])
 def atualizar_servicos(id_servicos):
-    servicos = db_session.execute(select(Servicos)).scalars()
-
-    servico.veiculos_associado = request.form["form_veiculos_associado"]
-    servico.descricao = request.form["form_descricao"]
-    servico.data = request.form["form_data"]
-    servico.status = request.form["form_status"]
-    servicos.valor_total = request.form.get("form_valor_total")
-
-    servicos.save()
-
-
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    sql_atualizar_ordens = select(Ordens_de_servicos)
+    atualizar_

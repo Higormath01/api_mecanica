@@ -38,7 +38,7 @@ class Cliente(Base):
     cpf = Column(String(11), nullable=False, index=True, unique=True)
 
 
-    def __repr__(self,db_session):
+    def __repr__(self):
         return '<Funcionario: Nome: {} CPF: {} Endereco: {} Telefone: {} >'.format(self.nome, self.cpf, self.endereco, self.telefone )
 
     def save(self,db_session):
@@ -64,7 +64,7 @@ class Cliente(Base):
 
 class Veiculos(Base):
     __tablename__ = 'veiculos'
-    id_veiculo = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True)
     id_cliente = Column(Integer,ForeignKey(Cliente.id_cliente))
     marca = Column(String(40), nullable=False, index=True)
     modelo = Column(String(40), nullable=False, index=True)
@@ -95,7 +95,6 @@ class Veiculos(Base):
 
 class Ordens_de_servicos(Base):
     __tablename__ = 'Ordens_de_servicos'
-
     id_servicos = Column(Integer, primary_key=True)
     veiculos_associados = Column(String(40), nullable=False, index=True)
     descricao_de_servico= Column(String(40), nullable=False, index=True)
@@ -103,7 +102,7 @@ class Ordens_de_servicos(Base):
     status = Column(String(10), nullable=False)
     valor_total = Column(Float, nullable=False, index=True)
 
-    def __repr__(self,db_session):
+    def __repr__(self):
         return '<Ordens_de_servicos:  {} {} {} {} {} {}>'.format(self.id_servicos, self.veiculos_associados, self.descricao_de_servico, self.data_de_abertura, self.status, self.valor_total)
 
     def save(self,db_session):
@@ -116,7 +115,7 @@ class Ordens_de_servicos(Base):
 
     def serialize_user(self):
         dados_movimentacao = {
-            'id': self.id,
+
             'id_servicos': self.id_servicos,
             'veiculos_associados': self.veiculos_associados,
             'descricao_de_servico':self.descricao_de_servico,
