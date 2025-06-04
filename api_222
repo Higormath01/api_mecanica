@@ -1,0 +1,170 @@
+from flask import Flask, request, jsonify
+from sqlalchemy import select, create_engine, Column, Integer, String, Float, ForeignKey
+from sqlalchemy.orm import sessionmaker, declarative_base
+import os
+import configparser
+from dotenv import load_dotenv
+
+# --- Configuração do banco ---
+load_dotenv()
+config = configparser.ConfigParser()
+config.read('config.ini')
+database_url = config['database']['url'] if 'database' in config else os.getenv("DATABASE_URL")
+engine = create_engine('sqlite:///database.db')  # Use local SQLite para testes
+local_session = sessionmaker(bind=engine)
+Base = declarative_base()
+
+# --- Modelos ---
+class Cliente(Base):
+    __tablename__ = 'clientes'
+    id_cliente = Column(Integer, primary_key=True)
+    nome = Column(String(40), nullable=False)
+    telefone = Column(String(11), nullable=False, unique=True)
+    endereco = Column(String(40), nullable=False)
+    cpf = Column(String(11), nullable=False, unique=True)
+
+    def save(self, db_session):
+        db_session.add(self)
+        db_session.commit()
+
+    def delete(self, db_session):
+        db_session.delete(self)
+        db_session.commit()
+
+    def serialize_user(self):
+        return {
+            'id': self.id_cliente,
+            'nome': self.nome,
+            'telefone': self.telefone,
+            'endereco': self.endereco,
+            'cpf': self.cpf,
+        }
+
+class Veiculos(Base):
+    __tablename__ = 'veiculos'
+    id = Column(Integer, primary_key=True)
+    id_cliente = Column(Integer, ForeignKey(Cliente.id_cliente))
+    marca = Column(String(40), nullable=False)
+    modelo = Column(String(40), nullable=False)
+    placa = Column(String(40), nullable=False, unique=True)
+    ano_de_fabricacao = Column(Integer, nullable=False)
+
+    def save(self, db_session):
+        db_session.add(self)
+        db_session.commit()
+
+    def delete(self, db_session):
+        db_session.delete(self)
+        db_session.commit()
+
+    def serialize_user(self):
+        return {
+            'id': self.id,
+            'id_cliente': self.id_cliente,
+            'marca': self.marca,
+            'modelo': self.modelo,
+            'placa': self.placa,
+            'ano_de_fabricacao': self.ano_de_fabricacao,
+        }
+
+class Ordens_de_servicos(Base):
+    __tablename__ = 'Ordens_de_servicos'
+    id_servicos = Column(Integer, primary_key=True)
+    veiculos_associados = Column(String(40), nullable=False)
+    descricao_de_servico = Column(String(40), nullable=False)
+    data_de_abertura = Column(String(10), nullable=False)
+    status = Column(String(10), nullable=False)
+    valor_total = Column(Float, nullable=False)
+
+    def save(self, db_session):
+        db_session.add(self)
+        db_session.commit()
+
+    def delete(self, db_session):
+        db_session.delete(self)
+        db_session.commit()
+
+    def serialize_user(self):
+        return {
+            'id_servicos': self.id_servicos,
+            'veiculos_associados': self.veiculos_associados,
+            'descricao_de_servico': self.descricao_de_servico,
+            'status': self.status,
+            'data_de_abertura': self.data_de_abertura,
+            'valor_total': self.valor_total,
+        }
+
+# --- Inicializa DB ---
+def init_db():
+    Base.metadata.create_all(bind=engine)
+
+# --- Flask App ---
+app = Flask(__name__)
+app.config['SECRET_KEY'] = '<KEY>'
+
+@app.route('/cadastro_clientes', methods=['POST'])
+def cadastro_cliente():
+    db_session = local_session()
+    try:
+        dados = request.get_json()
+        if not all(dados.get(campo) for campo in ['nome', 'cpf', 'telefone', 'endereco']):
+            return jsonify({'error': 'Preencha todos os campos'}), 400
+
+        if db_session.execute(select(Cliente).where(Cliente.telefone == dados['telefone'])).scalar():
+            return jsonify({'erro': 'Esse telefone já existe!'}), 400
+
+        if db_session.execute(select(Cliente).where(Cliente.cpf == dados['cpf'])).scalar():
+            return jsonify({'erro': 'Esse CPF já existe!'}), 400
+
+        cliente = Cliente(**dados)
+        cliente.save(db_session)
+        return jsonify(cliente.serialize_user()), 201
+    except Exception:
+        return jsonify({'Error': 'Não foi possível cadastrar'}), 500
+    finally:
+        db_session.close()
+
+@app.route('/lista_clientes', methods=["GET"])
+def lista_clientes():
+    db_session = local_session()
+    try:
+        clientes = db_session.execute(select(Cliente)).scalars().all()
+        return jsonify({'lista': [c.serialize_user() for c in clientes]})
+    finally:
+        db_session.close()
+
+@app.route('/atualizar_clientes/<int:id_cliente>', methods=["PUT"])
+def atualizar_clientes(id_cliente):
+    db_session = local_session()
+    try:
+        dados = request.get_json()
+        cliente = db_session.execute(select(Cliente).where(Cliente.id_cliente == id_cliente)).scalar()
+
+        if not cliente:
+            return jsonify({'error': 'Cliente não encontrado'}), 404
+
+        if not all(dados.get(campo) for campo in ['nome', 'cpf', 'telefone', 'endereco']):
+            return jsonify({'error': 'Preencha todos os campos'}), 400
+
+        cliente.nome = dados['nome']
+        cliente.cpf = dados['cpf']
+        cliente.telefone = dados['telefone']
+        cliente.endereco = dados['endereco']
+        db_session.commit()
+
+        return jsonify(cliente.serialize_user()), 200
+    finally:
+        db_session.close()
+
+@app.route('/lista_servicos', methods=["GET"])
+def lista_servicos():
+    db_session = local_session()
+    try:
+        servicos = db_session.execute(select(Ordens_de_servicos)).scalars().all()
+        return jsonify({'lista': [s.serialize_user() for s in servicos]})
+    finally:
+        db_session.close()
+
+if __name__ == '__main__':
+    init_db()
+    app.run(debug=True)
