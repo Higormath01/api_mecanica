@@ -1,0 +1,221 @@
+import flet as ft
+import requests
+from datetime import date
+
+API_URL = "http://localhost:5000"  # URL base da API AutoTech
+
+# ------------------- Funções Auxiliares -------------------
+
+def exibir_mensagem(page, texto, cor="green"):
+    page.snack_bar = ft.SnackBar(ft.Text(texto), bgcolor=cor)
+    page.snack_bar.open = True
+    page.update()
+
+# ------------------- CRUD CLIENTES -------------------
+
+def listar_clientes():
+    try:
+        resp = requests.get(f"{API_URL}/clientes")
+        return resp.json() if resp.status_code == 200 else []
+    except:
+        return []
+
+def cadastrar_cliente(nome, cpf, telefone, endereco):
+    dados = {
+        "nome": nome,
+        "cpf": cpf,
+        "telefone": telefone,
+        "endereco": endereco
+    }
+    return requests.post(f"{API_URL}/clientes", json=dados)
+
+# ------------------- CRUD VEÍCULOS -------------------
+
+def listar_veiculos():
+    try:
+        resp = requests.get(f"{API_URL}/veiculos")
+        return resp.json() if resp.status_code == 200 else []
+    except:
+        return []
+
+def cadastrar_veiculo(cliente_id, marca, modelo, placa, ano):
+    dados = {
+        "cliente_id": cliente_id,
+        "marca": marca,
+        "modelo": modelo,
+        "placa": placa,
+        "ano": ano
+    }
+    return requests.post(f"{API_URL}/veiculos", json=dados)
+
+# ------------------- CRUD ORDENS DE SERVIÇO -------------------
+
+def listar_ordens():
+    try:
+        resp = requests.get(f"{API_URL}/ordens")
+        return resp.json() if resp.status_code == 200 else []
+    except:
+        return []
+
+def cadastrar_ordem(veiculo_id, descricao, valor_estimado):
+    dados = {
+        "veiculo_id": veiculo_id,
+        "data_abertura": str(date.today()),
+        "descricao": descricao,
+        "status": "Aberta",
+        "valor_estimado": valor_estimado
+    }
+    return requests.post(f"{API_URL}/ordens", json=dados)
+
+def atualizar_status_ordem(ordem_id, novo_status):
+    dados = {"status": novo_status}
+    return requests.put(f"{API_URL}/ordens/{ordem_id}", json=dados)
+
+# ------------------- TELAS -------------------
+
+def tela_clientes(page):
+    nome = ft.TextField(label="Nome")
+    cpf = ft.TextField(label="CPF")
+    telefone = ft.TextField(label="Telefone")
+    endereco = ft.TextField(label="Endereço")
+
+    def salvar_cliente(e):
+        resp = cadastrar_cliente(nome.value, cpf.value, telefone.value, endereco.value)
+        if resp.status_code == 201:
+            exibir_mensagem(page, "Cliente cadastrado com sucesso!")
+            page.go("/clientes")
+        else:
+            exibir_mensagem(page, "Erro ao cadastrar cliente", "red")
+
+    lista = ft.ListView(expand=True)
+    for c in listar_clientes():
+        lista.controls.append(ft.Text(f"{c['id']} - {c['nome']} - {c['cpf']}"))
+
+    return ft.View(
+        "/clientes",
+        [
+            ft.AppBar(title=ft.Text("Clientes"), bgcolor=ft.colors.BLUE),
+            ft.Column([nome, cpf, telefone, endereco, ft.ElevatedButton("Cadastrar", on_click=salvar_cliente)]),
+            ft.Text("Lista de Clientes", size=20, weight=ft.FontWeight.BOLD),
+            lista,
+            ft.ElevatedButton("Voltar", on_click=lambda _: page.go("/"))
+        ]
+    )
+
+def tela_veiculos(page):
+    clientes = listar_clientes()
+    cliente_dropdown = ft.Dropdown(label="Cliente")
+    for c in clientes:
+        cliente_dropdown.options.append(ft.dropdown.Option(c["id"], c["nome"]))
+
+    marca = ft.TextField(label="Marca")
+    modelo = ft.TextField(label="Modelo")
+    placa = ft.TextField(label="Placa")
+    ano = ft.TextField(label="Ano de fabricação")
+
+    def salvar_veiculo(e):
+        resp = cadastrar_veiculo(cliente_dropdown.value, marca.value, modelo.value, placa.value, ano.value)
+        if resp.status_code == 201:
+            exibir_mensagem(page, "Veículo cadastrado com sucesso!")
+            page.go("/veiculos")
+        else:
+            exibir_mensagem(page, "Erro ao cadastrar veículo", "red")
+
+    lista = ft.ListView(expand=True)
+    for v in listar_veiculos():
+        lista.controls.append(ft.Text(f"{v['id']} - {v['marca']} {v['modelo']} - Placa: {v['placa']}"))
+
+    return ft.View(
+        "/veiculos",
+        [
+            ft.AppBar(title=ft.Text("Veículos"), bgcolor=ft.colors.GREEN),
+            cliente_dropdown, marca, modelo, placa, ano,
+            ft.ElevatedButton("Cadastrar", on_click=salvar_veiculo),
+            ft.Text("Lista de Veículos", size=20, weight=ft.FontWeight.BOLD),
+            lista,
+            ft.ElevatedButton("Voltar", on_click=lambda _: page.go("/"))
+        ]
+    )
+
+def tela_ordens(page):
+    veiculos = listar_veiculos()
+    veiculo_dropdown = ft.Dropdown(label="Veículo")
+    for v in veiculos:
+        veiculo_dropdown.options.append(ft.dropdown.Option(v["id"], f"{v['marca']} {v['modelo']} - {v['placa']}"))
+
+    descricao = ft.TextField(label="Descrição do serviço")
+    valor_estimado = ft.TextField(label="Valor estimado")
+
+    def salvar_ordem(e):
+        resp = cadastrar_ordem(veiculo_dropdown.value, descricao.value, valor_estimado.value)
+        if resp.status_code == 201:
+            exibir_mensagem(page, "Ordem de serviço criada com sucesso!")
+            page.go("/ordens")
+        else:
+            exibir_mensagem(page, "Erro ao criar ordem de serviço", "red")
+
+    lista = ft.ListView(expand=True)
+    for o in listar_ordens():
+        lista.controls.append(
+            ft.Row([
+                ft.Text(f"OS {o['id']} - {o['descricao']} - Status: {o['status']}"),
+                ft.Dropdown(
+                    options=[
+                        ft.dropdown.Option("Aberta"),
+                        ft.dropdown.Option("Em andamento"),
+                        ft.dropdown.Option("Concluída")
+                    ],
+                    value=o['status'],
+                    on_change=lambda e, oid=o['id']: atualizar_status_ordem(oid, e.control.value)
+                )
+            ])
+        )
+
+    return ft.View(
+        "/ordens",
+        [
+            ft.AppBar(title=ft.Text("Ordens de Serviço"), bgcolor=ft.colors.ORANGE),
+            veiculo_dropdown, descricao, valor_estimado,
+            ft.ElevatedButton("Criar OS", on_click=salvar_ordem),
+            ft.Text("Lista de Ordens de Serviço", size=20, weight=ft.FontWeight.BOLD),
+            lista,
+            ft.ElevatedButton("Voltar", on_click=lambda _: page.go("/"))
+        ]
+    )
+
+# ------------------- MENU PRINCIPAL -------------------
+
+def main(page: ft.Page):
+    page.title = "AutoTech - Oficina Mecânica"
+    page.vertical_alignment = ft.MainAxisAlignment.START
+
+    def route_change(e):
+        if page.route == "/clientes":
+            page.views.clear()
+            page.views.append(tela_clientes(page))
+        elif page.route == "/veiculos":
+            page.views.clear()
+            page.views.append(tela_veiculos(page))
+        elif page.route == "/ordens":
+            page.views.clear()
+            page.views.append(tela_ordens(page))
+        else:
+            page.views.clear()
+            page.views.append(
+                ft.View(
+                    "/",
+                    [
+                        ft.AppBar(title=ft.Text("AutoTech - Oficina"), bgcolor=ft.colors.BLUE_GREY),
+                        ft.Column([
+                            ft.ElevatedButton("Gerenciar Clientes", on_click=lambda _: page.go("/clientes")),
+                            ft.ElevatedButton("Gerenciar Veículos", on_click=lambda _: page.go("/veiculos")),
+                            ft.ElevatedButton("Gerenciar Ordens de Serviço", on_click=lambda _: page.go("/ordens")),
+                        ])
+                    ]
+                )
+            )
+
+    page.on_route_change = route_change
+    page.go(page.route)
+
+ft.app(target=main)
